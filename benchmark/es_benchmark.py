@@ -3,40 +3,35 @@ import time as t
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.asymmetric import ec
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
-import sys
 import matplotlib.pyplot as plot
 
-def create_key_list():
-   private_key_list = []
-   for i in range(0, 10000):
-      private_key = ec.generate_private_key(
-            ec.SECP256R1(),
-            backend=default_backend()
-      )
-      private_key_list.append(private_key)
-   return private_key_list
+def create_key():
+   private_key = ec.generate_private_key(
+         ec.SECP256R1(),
+         backend=default_backend()
+   )
+   return private_key
 
-def sign_token_benchmark(private_key_list, scope):
-   result = []
+def sign_token_benchmark(private_key, scope):
+   output = []
    serialized_token_list = []
-   key_id = "id"
-   token = SciToken(key=private_key_list[0], algorithm="ES256", key_id=key_id)
+   token = SciToken(key=private_key, algorithm="ES256")
    token.update_claims({"scope": scope})
    starttime = t.time()
    for i in range(0, 10000):
       serialized_token = token.serialize(issuer="https://demo.scitokens.org")
       serialized_token_list.append(serialized_token)
    endtime = t.time()
-   result.append(serialized_token_list)
-   result.append(endtime-starttime)
-   return result
+   output.append(serialized_token_list)
+   output.append(endtime-starttime)
+   return output
 
-def verify_token_benchmark(serialized_token_list, private_key_list):
-   public_key = private_key_list[0].public_key()
+def verify_token_benchmark(serialized_token_list, private_key):
+   public_key = private_key.public_key()
    pem = public_key.public_bytes(encoding=Encoding.PEM, format=PublicFormat.SubjectPublicKeyInfo)
    starttime = t.time()
    for i in range(0, 10000):
-      SciToken.deserialize(serialized_token_list[0], public_key=pem)
+      SciToken.deserialize(serialized_token_list[i], public_key=pem)
    endtime = t.time()
    return endtime - starttime
 
@@ -46,34 +41,34 @@ def main():
       scope += scope
    sign_time = []
    verify_time = []
-   token_size = [331, 435, 539, 643]
+   token_size = [330, 106826, 213322, 319818]
 
-   private_key_list = create_key_list()
-   result = sign_token_benchmark(private_key_list, "")
+   private_key = create_key()
+   result = sign_token_benchmark(private_key, "")
    sign_time.append(result[1])
-   verify_time.append(verify_token_benchmark(result[0], private_key_list))
+   verify_time.append(verify_token_benchmark(result[0], private_key))
 
-   private_key_list = create_key_list()
-   result = sign_token_benchmark(private_key_list, scope)
+   private_key = create_key()
+   result = sign_token_benchmark(private_key, scope)
    sign_time.append(result[1])
-   verify_time.append(verify_token_benchmark(result[0], private_key_list))
+   verify_time.append(verify_token_benchmark(result[0], private_key))
 
-   private_key_list = create_key_list()
-   result = sign_token_benchmark(private_key_list, scope + scope)
+   private_key = create_key()
+   result = sign_token_benchmark(private_key, scope + scope)
    sign_time.append(result[1])
-   verify_time.append(verify_token_benchmark(result[0], private_key_list))
+   verify_time.append(verify_token_benchmark(result[0], private_key))
 
-   private_key_list = create_key_list()
-   result = sign_token_benchmark(private_key_list, scope + scope + scope)
+   private_key = create_key()
+   result = sign_token_benchmark(private_key, scope + scope + scope)
    sign_time.append(result[1])
-   verify_time.append(verify_token_benchmark(result[0], private_key_list))
+   verify_time.append(verify_token_benchmark(result[0], private_key))
 
    plot.title("ES Benchmark")
    plot.plot(token_size, sign_time, label='Sign Time')
    plot.plot(token_size, verify_time, label='Verify Time')
    plot.xlabel("Token Size")
    plot.ylabel("Time")
-   plot.legend(loc='upper right')
+   plot.legend(loc='upper left')
    for i, j in zip(token_size, sign_time):
       plot.annotate(str("{:.6f}".format(j)), xy=(i, j))
    for i, j in zip(token_size, verify_time):
